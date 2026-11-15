@@ -1,0 +1,21 @@
+
+# Compiled application
+store
+*.o
+
+# Build files
+build/
+cmake-build-*/
+
+# SQLite database and temporary files
+database/*.db
+database/*.db-shm
+database/*.db-wal
+
+# IDE settings
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
