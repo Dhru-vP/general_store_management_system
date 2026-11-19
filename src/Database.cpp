@@ -5,9 +5,9 @@
 using namespace std;
 
 // Constructor
-Database::Database()
+Database::Database(const std::string& path)
+    : db(nullptr), dbPath(path)
 {
-    db = nullptr;
 }
 
 // Destructor
@@ -19,7 +19,7 @@ Database::~Database()
 // Connect to SQLite database
 bool Database::connect()
 {
-    int result = sqlite3_open("database/store.db", &db);
+   int result = sqlite3_open(dbPath.c_str(), &db);
 
     if (result != SQLITE_OK)
     {

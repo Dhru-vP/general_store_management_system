@@ -2,12 +2,16 @@
 #include "Authentication.h"
 
 #include <iostream>
+#include <termios.h>
+#include <unistd.h>
+#include <string>
 #include <sstream>
 #include <iomanip>
 #include <limits>
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <openssl/crypto.h>
 
 using namespace std;
 
@@ -16,6 +20,73 @@ namespace
     const int ITERATIONS = 210000;
     const int SALT_SIZE = 16;
     const int HASH_SIZE = 32;
+
+    // Password masking function
+    string getPasswordMasked()
+    {
+        string password;
+        struct termios oldt, newt;
+
+        // Clear the leftover newline after username input
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+       // Allow automated Google Tests to provide password input
+if (!isatty(STDIN_FILENO))
+{
+    cin >> password;
+    return password;
+}
+        // Get current terminal settings
+        if (tcgetattr(STDIN_FILENO, &oldt) != 0)
+        {
+            cout << "Terminal error!\n";
+            return "";
+        }
+
+        newt = oldt;
+
+        // Disable normal character display and line buffering
+        newt.c_lflag &= ~(ECHO | ICANON);
+
+        newt.c_cc[VMIN] = 1;
+        newt.c_cc[VTIME] = 0;
+
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &newt) != 0)
+        {
+            cout << "Terminal configuration failed!\n";
+            return "";
+        }
+
+        char ch;
+
+        while (cin.get(ch))
+        {
+            // Enter key
+            if (ch == '\n' || ch == '\r')
+                break;
+
+            // Backspace handling
+            if (ch == 127 || ch == 8)
+            {
+                if (!password.empty())
+                {
+                    password.pop_back();
+                    cout << "\b \b" << flush;
+                }
+            }
+            else
+            {
+                password += ch;
+                cout << "*" << flush;
+            }
+        }
+
+        // Restore original terminal settings
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+
+        cout << endl;
+
+        return password;
+    }
 
     // Convert binary data into hexadecimal
     string toHex(const unsigned char* data, int length)
@@ -236,7 +307,7 @@ bool Authentication::createInitialAdmin()
     cin >> username;
 
     cout << "Create Admin Password: ";
-    cin >> password;
+    password = getPasswordMasked();
 
     if (createUser(username, password, "admin"))
     {
@@ -258,7 +329,7 @@ bool Authentication::registerCustomer()
     cin >> username;
 
     cout << "Enter Password (minimum 8 characters): ";
-    cin >> password;
+    password = getPasswordMasked();
 
     if (createUser(username, password, "customer"))
     {
@@ -280,7 +351,7 @@ bool Authentication::login(UserSession& session)
     cin >> username;
 
     cout << "Enter Password: ";
-    cin >> password;
+    password = getPasswordMasked();
 
     const char* sql =
         "SELECT user_id, username, password_hash, role, is_active "
